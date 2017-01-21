@@ -1,3 +1,11 @@
+Requirements:
+* Python 2.7.x
+** import argparse
+** import time
+** import os.path
+** import soco
+
+----
 Sonos Favorites Ramping Alarm:
     
     usage: sonos_faves_ramping_alarm.py [-h] [-s SPEAKER] [-c CHANNEL]
