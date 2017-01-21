@@ -20,3 +20,23 @@ Sonos Favorites Ramping Alarm:
     The channel you select must be a Sonos Favorite. Because I'm lazy and didn't
     feel like figuring out SoCo to get it working directly with Pandora, which
     SoCo doesn't seem to work with yet.
+
+----
+
+How To Use It:
+
+I run it in cron, as follows:
+
+    # m h  dom mon dow   command
+    0 7 * * 1,2,3,4,5 /usr/bin/python -s 'Master Bedroom' -c 'pulse' -m 30 -v 12
+
+This tells cron to run it every weekday, at 07:00 HRS, on the Speaker labeled
+'Master Bedroom', and 'pulse' matches the SiriusXM channel 'The Pulse'.  My alarm
+then runs for 30 minutes, during which it ramps the volume slowly from 0 to 12.
+
+My son prefers to wake up with a Pandora Channel built from the VolBeat version
+of Battleship Chains.  So the crontab entry for him looks like:
+
+    # m h  dom mon dow   command
+    30 7 * * 1,2,3,4,5 /usr/bin/python -s "Jason's Room" -c 'battleship' -m 30 -v 12
+
