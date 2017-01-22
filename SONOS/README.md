@@ -47,5 +47,5 @@ My son prefers to wake up with a Pandora Channel built from the VolBeat version
 of Battleship Chains.  So the crontab entry for him looks like:
 
     # m h  dom mon dow   command
-    30 7 * * 1,2,3,4,5 /usr/bin/python -s "Jason's Room" -c 'battleship' -m 30 -v 12
+    30 7 * * 1,2,3,4,5 /usr/bin/python -s "J's Room" -c 'battleship' -m 30 -v 12
 
