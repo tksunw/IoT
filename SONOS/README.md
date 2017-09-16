@@ -16,8 +16,11 @@ Sonos Favorites Ramping Alarm:
     
     optional arguments:
       -h, --help            show this help message and exit
-      -s SPEAKER, --speaker SPEAKER
+      -S SPEAKER, --speaker SPEAKER
                             The Sonos speaker to use for the alarm
+      -s SPEAKER, --slave SPEAKER
+                            The Sonos speaker to join to a master
+                            'All' causes all available speakers to join.
       -c CHANNEL, --channel CHANNEL
                             The Sonos Favorite Channel to use for the alarm
       -m MINUTES, --minutes MINUTES
@@ -37,7 +40,7 @@ How To Use It:
 I run it in cron, as follows:
 
     # m h  dom mon dow   command
-    0 7 * * 1,2,3,4,5 /usr/bin/python -s 'Master Bedroom' -c 'pulse' -m 30 -v 12
+    0 7 * * 1,2,3,4,5 /usr/bin/python -S 'Master Bedroom' -c 'pulse' -m 30 -v 12
 
 This tells cron to run it every weekday, at 07:00 HRS, on the Speaker labeled
 'Master Bedroom', and 'pulse' matches the SiriusXM channel 'The Pulse'.  My alarm
@@ -47,5 +50,11 @@ My son prefers to wake up with a Pandora Channel built from the VolBeat version
 of Battleship Chains.  So the crontab entry for him looks like:
 
     # m h  dom mon dow   command
-    30 7 * * 1,2,3,4,5 /usr/bin/python -s "J's Room" -c 'battleship' -m 30 -v 12
+    30 7 * * 1,2,3,4,5 /usr/bin/python -S "J's Room" -c 'battleship chains' -m 30 -v 12
+
+If my wife is travelling, I'll join my son in waking up to the battleship chains channel.
+
+    # m h  dom mon dow   command
+    30 7 * * 1,2,3,4,5 /usr/bin/python -S "J's Room" -s 'master bedroom' -c 'battleship chains' -m 30 -v 12
+
 
