@@ -7,12 +7,14 @@ Requirements:
  * soco - get it at https://github.com/SoCo/SoCo
 
 ----
-Sonos Favorites Ramping Alarm:
+Sonos Favorites Fade In  Alarm:
+    
+    Sonos (Favorites) Fade In Alarm - An alarm that fades in a Sonos speaker, or 
+    set of speakers, over a configurable lenght of time, to a configurable volume
+    level.
     
     usage: sonos-fadein-alarm.py [-h] [-s SPEAKER] [-c CHANNEL]
                                         [-m MINUTES] [-v VOLUME] [-p]
-    
-    Sonos/Favorites ramping alarm.
     
     optional arguments:
       -h, --help            show this help message and exit
@@ -37,10 +39,33 @@ Sonos Favorites Ramping Alarm:
 
 How To Use It:
 
-I run it in cron, as follows:
+Look for the default variables near the top of the file.
+
+    _SPEAKER lets you set a default speaker to always use if one isn't specified by command
+    line options.
+
+    _CHANNEL lets you specify a default Sonos Favorites channel to play if one isn't specified
+    by command line option.
+
+    _MINUTES sets a default timespan for the fade-in.
+
+    _MAXVOL sets a default maximum volume.
+
+    _WEEKEND lets you set certain days of the week (by name) to be skipped on a regular basis.
+    Since my company is closed on Saturday and Sunday, those are the days listed.  Change them
+    to suit your work schedule.
+
+You can set the defaults to work for your need, or you can just specify everything vi command line options.
+
+I run it in cron, as follows, to run from 7AM to 7:30 AM, playing the 'Everybody Talks Radio' pandora station:
 
     # m h  dom mon dow   command
-    0 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S 'Master Bedroom' -c 'pulse' -m 30 -v 12
+    0 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py 
+
+Which is the equivalent of running it like this, if I hadn't set the defaults:
+
+    # m h  dom mon dow   command
+    0 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S 'Master Bedroom' -c 'Everybody Talks Radio' -m 30 -v 12
 
 This tells cron to run it every weekday, at 07:00 HRS, on the Speaker labeled
 'Master Bedroom', and 'pulse' matches the SiriusXM channel 'The Pulse'.  My alarm
@@ -56,5 +81,12 @@ If my wife is travelling, I'll join my son in waking up to the battleship chains
 
     # m h  dom mon dow   command
     30 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S "J's Room" -s 'master bedroom' -c 'battleship chains' -m 30 -v 12
+
+----
+
+holidays.txt
+
+    This file just contains a list of dates.  They currently happen to be the dates which my 
+    company gives me off, so you should change them to suit your work schedule.
 
 
