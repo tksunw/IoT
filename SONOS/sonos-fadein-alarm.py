@@ -1,7 +1,7 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 '''
-sonos_faves_ramping_alarm.py - a gentle alarm using Sonos Favorites.
+sonos-fadein-alarm.py - a gentle alarm using Sonos Favorites.
 
 This module allows a user to choose a SONOS favorite channel to
 play for a gentle alarm. Select the maximum desired volume, the
@@ -16,6 +16,7 @@ will do the rest.
 '''
 
 import argparse
+import datetime
 import time
 import os.path
 import soco
@@ -26,10 +27,14 @@ import soco
 # the number of minutes specified.  For me, I like a 30 minute
 # ramp from 0 to 12.  So the volume will increase by 1 every 2.5
 # minutes.
+# Set _WEEKEND days to skip certain days of the week, if you want
+# to skip your days off work.
+
 _SPEAKER = 'master bedroom'
 _CHANNEL = 'Everybody Talks Radio'
 _MINUTES = 30
 _MAXVOL = 12
+_WEEKEND = ('Saturday', 'Sunday')
 
 def get_sonos_favorites(from_speaker):
     ''' get_sonos_favorites: gets the saved "favorites" from a Sonos speaker.
@@ -115,11 +120,18 @@ def main():
                 time.sleep(ramp_interval)
 
 if __name__ == "__main__":
-    ''' /tmp/holiday allows us to mark when we don't want the alarm to run
-    tomorrow.  Especially when we're using cron.
-    '''
-    if os.path.isfile('/tmp/holiday'):
-        print "Today is marked as a holiday, not running the alarm"
+    today = datetime.datetime.today().strftime('%A')
+    date = datetime.datetime.today().strftime('%Y-%m-%d')
+    holidays = set(line.strip() for line in open('holidays.txt'))
+    if today in _WEEKEND:
+        print today, 'is a scheduled weekend day. Not running.'
+    elif date in holidays:
+        print date, 'is a scheduled holiday. Not running.'
+    elif os.path.isfile('/tmp/holiday'):
+        ''' /tmp/holiday allows us to mark when we don't want the alarm to run
+        tomorrow.  Especially when we're using cron.  Just touch the file.
+        '''
+        print "Today is marked as a holiday via /tmp/holiday, not running the alarm"
     else:
         main()
 else:

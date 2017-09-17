@@ -9,7 +9,7 @@ Requirements:
 ----
 Sonos Favorites Ramping Alarm:
     
-    usage: sonos_faves_ramping_alarm.py [-h] [-s SPEAKER] [-c CHANNEL]
+    usage: sonos-fadein-alarm.py [-h] [-s SPEAKER] [-c CHANNEL]
                                         [-m MINUTES] [-v VOLUME] [-p]
     
     Sonos/Favorites ramping alarm.
@@ -40,7 +40,7 @@ How To Use It:
 I run it in cron, as follows:
 
     # m h  dom mon dow   command
-    0 7 * * 1,2,3,4,5 /usr/bin/python -S 'Master Bedroom' -c 'pulse' -m 30 -v 12
+    0 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S 'Master Bedroom' -c 'pulse' -m 30 -v 12
 
 This tells cron to run it every weekday, at 07:00 HRS, on the Speaker labeled
 'Master Bedroom', and 'pulse' matches the SiriusXM channel 'The Pulse'.  My alarm
@@ -49,12 +49,12 @@ then runs for 30 minutes, during which it ramps the volume slowly from 0 to 12.
 My son prefers to wake up with a Pandora Channel built from the VolBeat version
 of Battleship Chains.  So the crontab entry for him looks like:
 
-    # m h  dom mon dow   command
-    30 7 * * 1,2,3,4,5 /usr/bin/python -S "J's Room" -c 'battleship chains' -m 30 -v 12
+    # m h dom mon dow   command
+    30 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S "J's Room" -c 'battleship chains' -m 30 -v 12
 
 If my wife is travelling, I'll join my son in waking up to the battleship chains channel.
 
     # m h  dom mon dow   command
-    30 7 * * 1,2,3,4,5 /usr/bin/python -S "J's Room" -s 'master bedroom' -c 'battleship chains' -m 30 -v 12
+    30 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S "J's Room" -s 'master bedroom' -c 'battleship chains' -m 30 -v 12
 
 
