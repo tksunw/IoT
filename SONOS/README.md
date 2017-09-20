@@ -105,4 +105,6 @@ holidays.txt
     This file just contains a list of dates.  They currently happen to be the dates which my 
     company gives me off, so you should change them to suit your work schedule.
 
+    You can also just touch /tmp/holiday on whatever system you run your alarm cron job on
+    for an adhoc holiday, and the alarm will skip the next morning and cleanup the file for you.  (Useful on teacher workdays, when the kids don't have to get up so early).
 
