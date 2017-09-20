@@ -18,12 +18,9 @@ import soco
 
 # Set some default values.  These are mine.  The channel is listed
 # by name, and comes from the Sonos players 'favorites'.  Volume
-# on the player(s) specified will be set at _VOLUME, if something
-# different is not specified via -v.
+# on the player(s) is specified via -v.
 
 _SPEAKER = 'office'
-_CHANNEL = 'Sunlounger Radio'
-_VOLUME = 6
 
 def get_sonos_favorites(from_speaker):
     ''' get_sonos_favorites: gets the saved "favorites" from a Sonos speaker.
@@ -35,6 +32,15 @@ def get_sonos_favorites(from_speaker):
     '''
     favs = from_speaker.get_sonos_favorites()['favorites']
     return favs
+
+def toggle_pause(speaker):
+    if speaker.get_current_transport_info()['current_transport_state'] == 'PLAYING':
+        speaker.pause()
+    else:
+        speaker.play()
+
+def set_speaker_volume(speaker,volume):
+    speaker.volume = volume
 
 def main():
     ''' main function:
@@ -57,11 +63,9 @@ def main():
     parser.add_argument('-s', '--slave', type=str,
                         help='The Sonos speaker(s) to join to a group for the alarm.  Use the word "all" to join all available players.')
     parser.add_argument('-c', '--channel', type=str,
-                        help='The Sonos Favorite Channel to use for the alarm',
-                        default=_CHANNEL)
+                        help='The Sonos Favorite Channel to use for the alarm')
     parser.add_argument('-v', '--volume', type=int,
-                        help='Set the maximum volume for the alarm',
-                        default=_VOLUME)
+                        help='Set the maximum volume for the alarm')
     parser.add_argument('-p', '--pause',
                         help='Pause a speaker that is playing.',
                         action='store_true')
@@ -80,25 +84,30 @@ def main():
             slave = [x for x in speakers if x.player_name.lower() == args.slave.lower()][0]
             slave.join(player)
 
+    curr_state = player.get_current_transport_info()['current_transport_state']
+
+    if args.volume:
+        set_speaker_volume(player,args.volume)
+
     if args.pause:
-        ''' this will stop the indicated sonos speaker.  even if the alarm is
-        still running.
+        ''' depending on the current state of the speaker, let's pause or play,
+        as we deem appropriate.
         '''
-        player.stop()
+        toggle_pause(player)
     else:
-        favorites = get_sonos_favorites(player)
-        for favorite in favorites:
-            if args.channel.lower() in favorite['title'].lower():
-                my_choice = favorite
-                break
+        if args.channel:
+            favorites = get_sonos_favorites(player)
+            for favorite in favorites:
+                # this fuzzy match lets us type partial channel names
+                if args.channel.lower() in favorite['title'].lower():
+                    my_choice = favorite
+                    break
 
-        print "Playing {} on {}".format(my_choice['title'], player.player_name)
-        player.play_uri(uri=my_choice['uri'], meta=my_choice['meta'], start=True)
-
-        player.volume = args.volume
+            print "Playing {} on {}".format(my_choice['title'], player.player_name)
+            player.play_uri(uri=my_choice['uri'], meta=my_choice['meta'], start=True)
 
 if __name__ == "__main__":
-        main()
+    main()
 else:
     print "This file is not intended to be included by other scripts."
 
