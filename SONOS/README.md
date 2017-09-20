@@ -35,8 +35,8 @@ Sonos Favorites Fade In  Alarm:
     feel like figuring out SoCo to get it working directly with Pandora, which
     SoCo doesn't seem to work with yet.
 
-----
 
+----
 How To Use It:
 
 Look for the default variables near the top of the file.
@@ -81,6 +81,22 @@ If my wife is travelling, I'll join my son in waking up to the battleship chains
 
     # m h  dom mon dow   command
     30 7 * * * /usr/bin/python /path/to/sonos-fadein-alarm.py -S "J's Room" -s 'master bedroom' -c 'battleship chains' -m 30 -v 12
+
+----
+Sonos Favorites Player:
+    
+    Play a Sonos favorites channel at a configurable volume
+    on a specific Sonos speaker.
+    
+    usage: sonos-faveplayer.py
+    
+    The channel selector is limited to Sonos Favorites. Because I'm lazy and didn't
+    feel like figuring out SoCo to get it working directly with Pandora, which
+    SoCo doesn't seem to work with yet.
+
+How I use this tool:
+
+    ./sonos-faveplayer.py
 
 ----
 
