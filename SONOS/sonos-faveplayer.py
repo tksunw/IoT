@@ -61,7 +61,7 @@ def drawchooserpad(choice_type):
             option_set = SPEAKER_NAMES
         elif choice_type == 'favorites':
             option_header = 'Sonos Favorites:'
-            option_set = FAVEORITE_NAMES
+            option_set = FAVORITE_NAMES
 
         chooser_menu.clear()
         chooser_menu.border(0)
