@@ -43,12 +43,13 @@ def print_error(*args, **kwargs):
 def drawchooserpad(choice_type):
     ''' enable a user to choose a channel from sonos faves.
     '''
-    chooser_menu = SCREEN.subpad(len(FAVORITES) + 6, 60, 4, 4)
+    #menupad = SCREEN.subpad(len(FAVORITES) + 8, 60, 4, 4)
+    menupad = SCREEN.subpad(4, 4)
     curses.start_color()
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
-    chooser_menu.keypad(1)
-    pos = 4
-    chooser_menu.refresh()
+    menupad.keypad(1)
+    pos = 1
+    menupad.refresh()
     choice = None
     selection = False
     option_set = []
@@ -63,19 +64,20 @@ def drawchooserpad(choice_type):
             option_header = 'Sonos Favorites:'
             option_set = FAVORITE_NAMES
 
-        chooser_menu.clear()
-        chooser_menu.border(0)
-        chooser_menu.addstr(2, 2, option_header, curses.A_STANDOUT)
-        chooser_menu.addstr(4, 2, "Please select an option...", curses.A_BOLD)
+        menupad.clear()
+        menupad.border(0)
+        menupad.addstr(2, 2, option_header, curses.A_STANDOUT)
+        menupad.addstr(4, 2, "Please select an option...", curses.A_BOLD)
         cpair1 = curses.color_pair(1)
         cpair2 = curses.A_NORMAL
         cidx = 0
         for option in option_set:
             cidx += 1
-            if pos == cidx:
-                chooser_menu.addstr(STARTLINE + cidx, STARTCOL, option, cpair1)
-            else:
-                chooser_menu.addstr(STARTLINE + cidx, STARTCOL, option, cpair2)
+            colorset = cpair1 if pos == cidx else cpair2
+            try:
+                menupad.addstr(STARTLINE + cidx, STARTCOL, option, colorset)
+            except Exception, err:
+                print_error('got error: ' + str(err))
 
         for _ in xrange(len(option_set)):
             if choice == _:
@@ -84,10 +86,8 @@ def drawchooserpad(choice_type):
             pos += 1 if (pos < len(option_set)) else 1
         elif choice == 259:
             pos -= 1 if (pos > 1) else len(option_set)
-        choice = chooser_menu.getch()
-    print_error("option_set is: " + str(option_set))
-    print_error("len option_set is: " + str(len(option_set)))
-    print_error("pos at selection is: " + str(pos))
+        choice = menupad.getch()
+
     selection = option_set[pos-1]
     if choice_type == 'speakers':
         try:
