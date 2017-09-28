@@ -32,7 +32,6 @@ def time_to_seconds(time):
 def progress_bar_pct(position, duration):
     ''' docstring
     '''
-    print_error('progress_bar_pct: got ' + str(position) + ' and ' + str(duration))
     p_secs = time_to_seconds(position) if position > 0 else 1
     d_secs = time_to_seconds(duration) if duration > 0 else 100
     p_pct = 100.0 * p_secs / d_secs
@@ -115,9 +114,9 @@ def selector(mainscreen, choicetype):
 
         maxrowpage = MAXROWS * (page - 1)
         for i in range(1 + maxrowpage, MAXROWS + 1 + maxrowpage):
-            ltr = available_choices[i-1]
+            option = available_choices[i-1]
             cpair = curses.A_REVERSE if i + maxrowpage == position + maxrowpage else curses.A_NORMAL
-            box.addstr(i - maxrowpage, 2, str(i) + " - " + ltr, cpair)
+            box.addstr(i - maxrowpage, 2, option, cpair)
             if i == row_num:
                 break
 
