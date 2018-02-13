@@ -10,14 +10,14 @@ Requirements:
 Sonos Favorites Fade In  Alarm:
     
     Sonos (Favorites) Fade In Alarm - An alarm that fades in a Sonos speaker, or 
-    set of speakers, over a configurable lenght of time, to a configurable volume
+    set of speakers, over a configurable length of time, to a configurable volume
     level.
     
     usage: sonos-fadein-alarm.py [-h] [-s SPEAKER] [-c CHANNEL]
                                         [-m MINUTES] [-v VOLUME] [-p]
     
     optional arguments:
-      -h, --help            show this help message and exit
+      -h, --help            Show this help message and exit
       -S SPEAKER, --speaker SPEAKER
                             The Sonos speaker to use for the alarm
       -s SPEAKER, --slave SPEAKER
