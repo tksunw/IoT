@@ -3,10 +3,12 @@
 '''
 docstring goes here
 '''
+from __future__ import print_function
 import curses
 import locale
 import sys
 import soco
+
 
 locale.setlocale(locale.LC_ALL, '')
 ENCODING = locale.getpreferredencoding()
@@ -14,168 +16,163 @@ ARROW_UP = u'\u2191'.encode(ENCODING) # ↑
 ARROW_RT = u'\u2192'.encode(ENCODING) # ↓
 ARROW_DN = u'\u2193'.encode(ENCODING) # ↓
 
-SCREEN = curses.initscr()
-curses.cbreak()
-curses.halfdelay(10)
-curses.noecho()
-SCREEN.keypad(1)
-
-SPEAKERS = soco.discover()
-
+#SCREEN = curses.initscr()
+#curses.cbreak()
+#curses.halfdelay(10)
+#curses.noecho()
+#SCREEN.keypad(1)
 STARTLINE = 6
 STARTCOL = 10
 
+SPEAKERS = soco.discover()
+SPEAKER_NAMES = [s.player_name for s in SPEAKERS]
 PLAYER = [x for x in SPEAKERS if x.player_name.lower() == 'office'][0]
-FAVES = sorted(PLAYER.get_sonos_favorites()['favorites'])
+
+FAVORITES = sorted(PLAYER.get_sonos_favorites()['favorites'])
+FAVORITE_NAMES = [f['title'] for f in sorted(FAVORITES)]
+# I haven't figured out where to pull the current channel, so we start
+# with 'Unknown', and update it when we change things
 CHANNEL_NAME = 'Unknown'
 HR = 60 * '-'
 
-STATE = PLAYER.get_current_transport_info()['current_transport_state']
-if STATE != 'PLAYING':
-    print '\n\nState is', STATE
-    CHANNEL_NAME = channelchooser()
-    PLAYER.play()
-
-def drawmenu(chan_menu, pos, cpair1, cpair2):
-    ''' draw the actual channel menu
+def print_error(*args, **kwargs):
+    ''' an easy way to print to stderr
     '''
-    chan_menu.clear()
-    chan_menu.border(0)
-    chan_menu.addstr(2, 2, "Sonos Favorites:", curses.A_STANDOUT)
-    chan_menu.addstr(4, 2, "Please select an option...", curses.A_BOLD)
-    # Detect what is highlighted by the 'pos' variable.
-    cidx = 0
-    for channel in [f['title'] for f in FAVES]:
-        cidx += 1
-        if pos == cidx:
-            chan_menu.addstr(STARTLINE + cidx, STARTCOL, channel, cpair1)
-        else:
-            chan_menu.addstr(STARTLINE + cidx, STARTCOL, channel, cpair2)
+    print(*args, file=sys.stderr, **kwargs)
 
-
-
-def channelchooser():
+def drawchooserpad(choice_type):
     ''' enable a user to choose a channel from sonos faves.
     '''
-    chan_menu = SCREEN.subpad(len(FAVES) + 10, 60, 4, 4)
+    #menupad = SCREEN.subpad(len(FAVORITES) + 8, 60, 4, 4)
+    menupad = SCREEN.subpad(12, 40)
+    menupad.scrollok(1)
     curses.start_color()
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_WHITE)
-    chan_menu.keypad(1)
+    menupad.keypad(1)
     pos = 1
-    chan_menu.refresh()
+    menupad.refresh()
     choice = None
-    # I'm going to be lazy and save some typing here.
-    cpair1 = curses.color_pair(1)
-    cpair2 = curses.A_NORMAL
+    selection = False
+    option_set = []
+
     while choice != ord('\n'):
-        #chan_menu.clear()
-        #chan_menu.border(0)
-        #chan_menu.addstr(2, 2, "Sonos Favorites:", curses.A_STANDOUT)
-        #chan_menu.addstr(4, 2, "Please select an option...", curses.A_BOLD)
-        ## Detect what is highlighted by the 'pos' variable.
-        #cidx = 0
-        #for channel in [f['title'] for f in FAVES]:
-        #    cidx += 1
-        #    if pos == cidx:
-        #        chan_menu.addstr(STARTLINE + cidx, STARTCOL, channel, cpair1)
-        #    else:
-        #        chan_menu.addstr(STARTLINE + cidx, STARTCOL, channel, cpair2)
-        drawmenu(chan_menu, pos, cpair1, cpair2)
+        if choice in [27, ord('q')]:
+            return 'nochoice'
+        if choice_type == 'speakers':
+            option_header = 'Available Sonos Speakers:'
+            option_set = SPEAKER_NAMES
+        elif choice_type == 'favorites':
+            option_header = 'Sonos Favorites:'
+            option_set = FAVORITE_NAMES
 
-        choice = chan_menu.getch()
-        channel = FAVES[pos-1]
+        menupad.clear()
+        menupad.border(0)
+        menupad.addstr(2, 2, option_header, curses.A_STANDOUT)
+        menupad.addstr(4, 2, "Please select an option...", curses.A_BOLD)
+        cpair1 = curses.color_pair(1)
+        cpair2 = curses.A_NORMAL
+        cidx = 0
+        for option in option_set:
+            cidx += 1
+            colorset = cpair1 if pos == cidx else cpair2
+            try:
+                menupad.addstr(STARTLINE + cidx, STARTCOL, option, colorset)
+            except StandardError, err:
+                print_error('got error: ' + str(err))
 
-        for _ in xrange(len(FAVES)):
+        for _ in xrange(len(option_set)):
             if choice == _:
                 pos = _
         if choice == 258:
-            if pos < len(FAVES):
-                pos += 1
-            else:
-                pos = 1
+            pos += 1 if (pos < len(option_set)) else 1
         elif choice == 259:
-            if pos > 1:
-                pos += -1
-            else:
-                pos = len(FAVES)
-        elif choice != ord('\n'):
-            curses.flash()
+            pos -= 1 if (pos > 1) else len(option_set)
+        choice = menupad.getch()
 
-    try:
-        PLAYER.play_uri(uri=channel['uri'], meta=channel['meta'], start=True)
-    except soco.exceptions.SoCoUPnPException:
-        sys.exc_clear()
+    selection = option_set[pos-1]
+    if choice_type == 'speakers':
+        try:
+            selected = [p for p in SPEAKERS if p.player_name == selection][0]
+        except StandardError:
+            pass
+    elif choice_type == 'favorites':
+        try:
+            print_error("got favorites selection for " + selection)
+            new_fave = [c for c in sorted(FAVORITES) if c['title'] == selection][0]
+            PLAYER.play_uri(uri=new_fave['uri'], meta=new_fave['meta'], start=True)
+            selected = new_fave['title']
+        except soco.exceptions.SoCoUPnPException:
+            sys.exc_clear()
+    return selected
 
-    return channel['title']
-
-def drawscreen(speaker, track_info):
+def drawscreen(SCREEN):
     ''' draws the curses display of album/track info
     '''
     SCREEN.erase()
-    SCREEN.border(0)
+    SCREEN.box()
     SCREEN.addstr(STARTLINE + 0, STARTCOL, HR)
     SCREEN.addstr(STARTLINE + 1, STARTCOL, 'Now '
-                  + speaker.get_current_transport_info()['current_transport_state']
+                  + PLAYER.get_current_transport_info()['current_transport_state']
                   + ' on Sonos speaker: '
-                  + speaker.player_name)
+                  + PLAYER.player_name)
     SCREEN.addstr(STARTLINE + 2, STARTCOL, 'Sonos Favorite Channel: ' + CHANNEL_NAME)
-    if speaker.mute:
-        volume = str(speaker.volume) + ' (MUTED)'
+    if PLAYER.mute:
+        volume = str(PLAYER.volume) + ' (MUTED)'
     else:
-        volume = str(speaker.volume)
+        volume = str(PLAYER.volume)
     SCREEN.addstr(STARTLINE + 3, STARTCOL, 'Volume Level: ' + volume)
     SCREEN.addstr(STARTLINE + 4, STARTCOL, HR)
-    SCREEN.addstr(STARTLINE + 5, STARTCOL, '  Artist: ' + track_info['artist'])
-    SCREEN.addstr(STARTLINE + 6, STARTCOL, '   Album: ' + track_info['album'])
-    SCREEN.addstr(STARTLINE + 7, STARTCOL, '   Track: ' + track_info['title'])
+    SCREEN.addstr(STARTLINE + 5, STARTCOL, '  Artist: ' + INFO['artist'])
+    SCREEN.addstr(STARTLINE + 6, STARTCOL, '   Album: ' + INFO['album'])
+    SCREEN.addstr(STARTLINE + 7, STARTCOL, '   Track: ' + INFO['title'])
     SCREEN.addstr(STARTLINE + 8, STARTCOL, HR)
     SCREEN.addstr(STARTLINE + 9, STARTCOL, '[ '
-                  + track_info['position']
+                  + INFO['position']
                   + ' / '
-                  + track_info['duration']
+                  + INFO['duration']
                   + ']')
     SCREEN.addstr(STARTLINE + 10, STARTCOL, HR)
     SCREEN.addstr(STARTLINE + 11, STARTCOL, str(KEY))
     SCREEN.addstr(STARTLINE + 13, STARTCOL, HR)
     SCREEN.addstr(STARTLINE + 14, STARTCOL, 'Controls:')
-    controls = "Play/Pause [P]/[SPACE], Skip = [S]/[ " + ARROW_RT + " ], Quit = [Q]"
+    controls = "Play/Pause [P]/[Space], Skip = [" + ARROW_RT + "], Quit = [Q]"
     SCREEN.addstr(STARTLINE + 15, STARTCOL, controls)
-    controls2 = "Volume: [ctrl] + [ " + ARROW_UP + " ], or [ " + ARROW_DN + " ]"
+    controls2 = "Volume: [Ctrl] + [" + ARROW_UP + "], or [" + ARROW_DN + "]"
     SCREEN.addstr(STARTLINE + 16, STARTCOL, controls2)
     SCREEN.refresh()
 
-KEY = ''
-while KEY != ord('q'):
-    STATE = PLAYER.get_current_transport_info()['current_transport_state']
-    KEYS_PAUSE = [32, 80, 112] # keys: [space], [P], [p]
-    KEYS_SKIP = [261, 83, 115] # keys: [→], [S], or [s]
-    KEYS_MUTE = [77, 109] # keys: [m], or [M]
-    KEYS_VOLUME_UP = [566] # [ctrl] + [↑]
-    KEYS_VOLUME_DOWN = [525] # [ctrl] + [↓]
-    KEYS_CHANNEL = [99, 67] # [c] and [C]
-    if KEY in KEYS_CHANNEL:
-        CHANNEL_NAME = channelchooser()
-    if KEY in KEYS_PAUSE:
-        if STATE == 'PLAYING':
-            PLAYER.pause()
-        else:
-            PLAYER.play()
-    if KEY in KEYS_SKIP:
-        PLAYER.next()
-    if KEY in KEYS_MUTE:
-        if PLAYER.mute:
-            PLAYER.mute = False
-        else:
-            PLAYER.mute = True
-    if KEY in KEYS_VOLUME_UP:
-        PLAYER.volume += 1
-    if KEY in KEYS_VOLUME_DOWN:
-        PLAYER.volume -= 1
+STATE = PLAYER.get_current_transport_info()['current_transport_state']
+if STATE != 'PLAYING':
+    CHANNEL_NAME = drawchooserpad(SCREEN, 'favorites')
+    PLAYER.play()
 
-    INFO = PLAYER.get_current_track_info()
-    drawscreen(PLAYER, INFO)
-    KEY = SCREEN.getch()
+if __name__ == '__main__':
+    KEY = ''
+    while KEY != 113:
+        STATE = PLAYER.get_current_transport_info()['current_transport_state']
+        KEYS_PAUSE = [32, 80, 112] # keys: [space], [P], [p]
+        KEYS_SKIP = [261] # keys: [→]
+        KEYS_MUTE = [77, 109] # keys: [m], or [M]
+        KEYS_VOLUME_UP = [566] # [ctrl] + [↑]
+        KEYS_VOLUME_DOWN = [525] # [ctrl] + [↓]
+        KEYS_CHANNEL = [99, 67] # [c] and [C]
+        KEYS_SPEAKER = [115, 83] # keys: [s] or [S]
+        if KEY in KEYS_CHANNEL:
+            NEW_CHANNEL = drawchooserpad(SCREEN, 'favorites')
+            CHANNEL_NAME = CHANNEL_NAME if NEW_CHANNEL == 'nochoice' else NEW_CHANNEL
+        if KEY in KEYS_SPEAKER:
+            NEW_PLAYER = drawchooserpad(SCREEN, 'speakers')
+            PLAYER = PLAYER if NEW_PLAYER == 'nochoice' else NEW_PLAYER
+        if KEY in KEYS_PAUSE:
+            _ = PLAYER.pause() if STATE == 'PLAYING' else PLAYER.play()
+        if KEY in KEYS_SKIP:
+            PLAYER.next()
+        if KEY in KEYS_MUTE:
+            PLAYER.mute = False if PLAYER.mute else True
+        if KEY in KEYS_VOLUME_UP:
+            PLAYER.volume += 1
+        if KEY in KEYS_VOLUME_DOWN:
+            PLAYER.volume -= 1
 
-SCREEN.clear()
-
-curses.endwin()
+        INFO = PLAYER.get_current_track_info()
+        curses.wrapper(drawscreen)
