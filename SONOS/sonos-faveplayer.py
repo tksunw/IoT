@@ -111,6 +111,10 @@ def selector(mainscreen, choicetype):
             del box
             return position
 
+        if choice == ord('q'):
+            curses.endwin()
+            exit()
+
         box.erase()
         mainscreen.border(0)
         box.border(0)
@@ -127,6 +131,7 @@ def selector(mainscreen, choicetype):
         box.refresh()
         choice = mainscreen.getch()
 
+
 def get_channel_name(curr_info):
     clean = curr_info['title'].replace('%3a',':').replace('&amp;','&')
     return CHANS[clean]
@@ -134,14 +139,15 @@ def get_channel_name(curr_info):
 def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
     ''' docstring
     '''
-    if curr_state is 'TRANSITIONING':
+    if curr_state == 'TRANSITIONING':
         time.sleep(2)
         curr_state = get_curr_state(speaker)
         curr_info = get_curr_info(speaker)
         draw_player(mainscreen, curr_state, curr_info, speaker, channel)
-    elif curr_state is 'STOPPED':
+    elif curr_state == 'STOPPED':
         curr_info['title'] = ''
-    elif curr_state is 'PLAYING':
+    elif curr_state == 'PLAYING':
+
         if curr_info['title'].startswith('x-sonosapi'):
             xml = BeautifulSoup(curr_info['metadata'], 'html.parser')
             dat = xml.find_all()[3]
@@ -150,13 +156,13 @@ def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
                 curr_state = get_curr_state(speaker)
                 curr_info = get_curr_info(speaker)
                 draw_player(mainscreen, curr_state, curr_info, speaker, channel)
-            curr_info['title'] = splits[2].replace('TITLE ','')
-            curr_info['artist'] = splits[3].replace('ARTIST ','')
+            else:
+                curr_info['title'] = splits[2].replace('TITLE ','')
+                curr_info['artist'] = splits[3].replace('ARTIST ','')
 
     box = curses.newwin(13, 64, 2, 1)
     box.box()
-    mainscreen.refresh()
-    curr_vol = str(speaker.volume + '(MUTED)') if speaker.mute else str(speaker.volume)
+    curr_vol = str(speaker.volume) + ' (MUTED)' if speaker.mute else str(speaker.volume)
     track_pos = curr_info['position'] if curr_info['position'] != 'NOT_IMPLEMENTED' else '0:00:00'
     track_dur = curr_info['duration'] if curr_info['duration'] != 'NOT_IMPLEMENTED' else '0:00:00'
     mainscreen.addstr(1, 1, 'Sonos Favorites Player')
@@ -172,6 +178,7 @@ def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
     box.hline(10, 2, '-', 60)
     box.addstr(11, 2, '[ ' + track_pos + ' / ' + track_dur  + ' ]')
     box.touchwin()
+    mainscreen.refresh()
     box.refresh()
     return None
 
@@ -234,7 +241,7 @@ def main(screen):
             speaker.group.coordinator.volume -= 1
 
         if choice is ord('m'):
-            speaker.group.coordinator.mute()
+            speaker.group.coordinator.mute = not speaker.group.coordinator.mute
 
         if choice is ord(' '):
             if curr_state == 'PLAYING':
