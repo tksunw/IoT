@@ -12,6 +12,10 @@ import soco
 import time
 
 SPKRS = sorted(soco.discover(), key=operator.attrgetter('player_name'))
+if not SPKRS:
+    print("An error occured during soco.discover(). Please check your network and try again")
+    sys.exit(1)
+
 FAVES = SPKRS[0].music_library.get_sonos_favorites()
 CHANS = {f.get_uri().replace('%3a',':').replace('&amp;','&'): f.title for f in FAVES}
 ALPHABET = [chr(c) for c in range(97, 123)]
