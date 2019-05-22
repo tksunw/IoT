@@ -1,8 +1,30 @@
 #!/usr/bin/env python3
-''' docstring goes here
-'''
+# -*- coding: utf-8 -*-
+""" Sonos-FavPlayer.py
 
-#from __future__ import print_function, division  #You don't need this in Python3
+This script is a CLI tool that runs on Linux (and possibly anywhere that
+python3 will run) and allows me to control all the Sonos speakers in
+my house.
+
+Example:
+
+        $ python3 sonos-favplayer.py
+
+There are no command line arguments.  This script will autodiscover
+any Sonos speakers on the local network.  And will pick one to gather
+the favorites channels, and allow you to choose from them.
+
+The advantage here is that I don't need complex plugins to allow the use
+of music services that don't have plugins yet, because I can just play
+the URI stored in the favorites list.
+
+Todo:
+    * Get initial player state do we don't bomb out before we choose a channel
+    * You have to also use ``sphinx.ext.todo`` extension
+    * I had another Todo item, but I can't remember it right now.
+
+"""
+
 from bs4 import BeautifulSoup
 import curses
 from math import ceil, floor
