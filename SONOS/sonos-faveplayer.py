@@ -39,7 +39,7 @@ if not SPKRS:
     sys.exit(1)
 
 FAVES = SPKRS[0].music_library.get_sonos_favorites()
-CHANS = {f.get_uri().replace('%3a',':').replace('&amp;','&'): f.title for f in FAVES}
+CHANS = {f.get_uri().replace('%3a',':').replace('&amp;','&'): f.title for f in FAVES if f.resources}
 ALPHABET = [chr(c) for c in range(97, 123)]
 MAXROWS = 10 #max number of rows
 
@@ -73,9 +73,9 @@ def selector(mainscreen, choicetype):
     '''
     box = curses.newwin(MAXROWS + 2, 64, 4, 4)
     box.box()
-    if choicetype is 'channels':
-        available_choices = [chan.title for chan in FAVES]
-    elif choicetype is 'speakers':
+    if choicetype == 'channels':
+        available_choices = [chan.title for chan in FAVES if chan.resources]
+    elif choicetype == 'speakers':
         available_choices = [spkr.player_name for spkr in SPKRS]
     else:
         return 0
