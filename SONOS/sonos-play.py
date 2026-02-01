@@ -1,7 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 '''
-sonos-play-alarm.py - Play a Sonos Favorites Channel.
+sonos-play.py - Play a Sonos Favorites Channel.
 
 This script allows a user to choose a SONOS favorite channel to
 play, at a certain volume, and with one additional or all
@@ -11,9 +11,7 @@ additional Sonos speakers on the network.
 '''
 
 import argparse
-import datetime
-import time
-import os.path
+import sys
 import soco
 
 # Set some default values.  These are mine.  The channel is listed
@@ -39,7 +37,7 @@ def toggle_pause(speaker):
     else:
         speaker.play()
 
-def set_speaker_volume(speaker,volume):
+def set_speaker_volume(speaker, volume):
     speaker.volume = volume
 
 def main():
@@ -75,39 +73,89 @@ def main():
     parser.epilog += "to work with yet."
     args = parser.parse_args()
 
+    # Validate volume range
+    if args.volume is not None and (args.volume < 0 or args.volume > 100):
+        print("Error: Volume must be between 0 and 100")
+        sys.exit(1)
+
+    # Discover Sonos speakers
     speakers = soco.discover()
-    player = [x for x in speakers if x.player_name.lower() == args.speaker.lower()][0]
+    if not speakers:
+        print("Error: No Sonos speakers found on the network")
+        sys.exit(1)
+
+    # Find the main player
+    player = next((x for x in speakers if x.player_name.lower() == args.speaker.lower()), None)
+    if not player:
+        print(f"Error: Speaker '{args.speaker}' not found")
+        print(f"Available speakers: {', '.join(s.player_name for s in speakers)}")
+        sys.exit(1)
+
+    # Handle slave speakers
     if args.slave:
         if args.slave.lower() == 'all':
-            [x.join(player) for x in speakers if x.player_name.lower() != player.player_name.lower()]
+            for speaker in speakers:
+                if speaker.player_name.lower() != player.player_name.lower():
+                    try:
+                        speaker.join(player)
+                    except Exception as e:
+                        print(f"Warning: Failed to join {speaker.player_name}: {e}")
         else:
-            slave = [x for x in speakers if x.player_name.lower() == args.slave.lower()][0]
-            slave.join(player)
+            slave = next((x for x in speakers if x.player_name.lower() == args.slave.lower()), None)
+            if not slave:
+                print(f"Error: Slave speaker '{args.slave}' not found")
+                sys.exit(1)
+            try:
+                slave.join(player)
+            except Exception as e:
+                print(f"Error: Failed to join speakers: {e}")
+                sys.exit(1)
 
-    curr_state = player.get_current_transport_info()['current_transport_state']
-
-    if args.volume:
-        set_speaker_volume(player,args.volume)
+    if args.volume is not None:
+        try:
+            set_speaker_volume(player, args.volume)
+        except Exception as e:
+            print(f"Error: Failed to set volume: {e}")
+            sys.exit(1)
 
     if args.pause:
         ''' depending on the current state of the speaker, let's pause or play,
         as we deem appropriate.
         '''
-        toggle_pause(player)
+        try:
+            toggle_pause(player)
+        except Exception as e:
+            print(f"Error: Failed to toggle pause: {e}")
+            sys.exit(1)
     else:
         if args.channel:
-            favorites = get_sonos_favorites(player)
+            try:
+                favorites = get_sonos_favorites(player)
+            except Exception as e:
+                print(f"Error: Failed to get favorites: {e}")
+                sys.exit(1)
+
+            my_choice = None
             for favorite in favorites:
                 # this fuzzy match lets us type partial channel names
                 if args.channel.lower() in favorite['title'].lower():
                     my_choice = favorite
                     break
 
-            print "Playing {} on {}".format(my_choice['title'], player.player_name)
-            player.play_uri(uri=my_choice['uri'], meta=my_choice['meta'], start=True)
+            if not my_choice:
+                print(f"Error: Channel '{args.channel}' not found in favorites")
+                print(f"Available favorites: {', '.join(f['title'] for f in favorites)}")
+                sys.exit(1)
+
+            print(f"Playing {my_choice['title']} on {player.player_name}")
+            try:
+                player.play_uri(uri=my_choice['uri'], meta=my_choice['meta'], start=True)
+            except Exception as e:
+                print(f"Error: Failed to play URI: {e}")
+                sys.exit(1)
 
 if __name__ == "__main__":
     main()
 else:
-    print "This file is not intended to be included by other scripts."
+    print("This file is not intended to be included by other scripts.")
 
