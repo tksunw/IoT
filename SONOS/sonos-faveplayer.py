@@ -27,19 +27,43 @@ Todo:
 
 from bs4 import BeautifulSoup
 import curses
-from math import ceil, floor
+from math import ceil
 import operator
 import sys
 import soco
 import time
 
-SPKRS = sorted(soco.discover(), key=operator.attrgetter('player_name'))
-if not SPKRS:
-    print("An error occured during soco.discover(). Please check your network and try again")
-    sys.exit(1)
 
-FAVES = SPKRS[0].music_library.get_sonos_favorites()
-CHANS = {f.get_uri().replace('%3a',':').replace('&amp;','&'): f.title for f in FAVES if f.resources}
+def clean_uri(uri):
+    """Clean URI by decoding common HTML entities."""
+    return uri.replace('%3a', ':').replace('&amp;', '&')
+
+
+def discover_speakers():
+    """Discover Sonos speakers on the network with error handling."""
+    try:
+        speakers = soco.discover()
+        if not speakers:
+            print("No Sonos speakers found. Please check your network and try again.")
+            sys.exit(1)
+        return sorted(speakers, key=operator.attrgetter('player_name'))
+    except Exception as e:
+        print(f"Error during speaker discovery: {e}")
+        sys.exit(1)
+
+
+def get_favorites(speakers):
+    """Get Sonos favorites from the first speaker with error handling."""
+    try:
+        return speakers[0].music_library.get_sonos_favorites()
+    except Exception as e:
+        print(f"Error retrieving favorites: {e}")
+        sys.exit(1)
+
+
+SPKRS = discover_speakers()
+FAVES = get_favorites(SPKRS)
+CHANS = {clean_uri(f.get_uri()): f.title for f in FAVES if f.resources}
 ALPHABET = [chr(c) for c in range(97, 123)]
 MAXROWS = 10 #max number of rows
 
@@ -92,10 +116,9 @@ def selector(mainscreen, choicetype):
             if page == 1:
                 if position < page * MAXROWS:
                     position = position + 1
-                else:
-                    if pages > 1:
-                        page = page + 1
-                        position = 1 + (MAXROWS * (page - 1))
+                elif pages > 1:
+                    page = page + 1
+                    position = 1 + (MAXROWS * (page - 1))
             elif page == pages:
                 if position < row_num:
                     position = position + 1
@@ -106,7 +129,7 @@ def selector(mainscreen, choicetype):
                     page = page + 1
                     position = 1 + (MAXROWS * (page - 1))
 
-        if choice == curses.KEY_UP:
+        elif choice == curses.KEY_UP:
             if page == 1:
                 if position > 1:
                     position = position - 1
@@ -117,23 +140,23 @@ def selector(mainscreen, choicetype):
                     page = page - 1
                     position = MAXROWS + (MAXROWS * (page - 1))
 
-        if choice == curses.KEY_LEFT:
+        elif choice == curses.KEY_LEFT:
             if page > 1:
                 page = page - 1
                 position = 1 + (MAXROWS * (page - 1))
 
-        if choice == curses.KEY_RIGHT:
+        elif choice == curses.KEY_RIGHT:
             if page < pages:
                 page = page + 1
                 position = (1 + (MAXROWS * (page - 1)))
 
-        if choice == ord("\n") and row_num != 0:
+        elif choice == ord("\n") and row_num != 0:
             box.erase()
             box.border(0)
             del box
             return position
 
-        if choice == ord('q'):
+        elif choice == ord('q'):
             curses.endwin()
             exit()
 
@@ -155,32 +178,48 @@ def selector(mainscreen, choicetype):
 
 
 def get_channel_name(curr_info):
-    clean = curr_info['title'].replace('%3a',':').replace('&amp;','&')
-    return CHANS[clean]
+    clean = clean_uri(curr_info['title'])
+    return CHANS.get(clean, 'Unknown Channel')
 
 def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
-    ''' docstring
+    ''' Draw the player interface with current track info.
     '''
-    if curr_state == 'TRANSITIONING':
-        time.sleep(2)
-        curr_state = get_curr_state(speaker)
-        curr_info = get_curr_info(speaker)
-        draw_player(mainscreen, curr_state, curr_info, speaker, channel)
-    elif curr_state == 'STOPPED':
-        curr_info['title'] = ''
-    elif curr_state == 'PLAYING':
+    max_retries = 5
+    retries = 0
 
-        if curr_info['title'].startswith('x-sonosapi'):
-            xml = BeautifulSoup(curr_info['metadata'], 'html.parser')
-            dat = xml.find_all()[3]
-            splits = dat.text.split('|')
-            if len(splits) < 3:
-                curr_state = get_curr_state(speaker)
-                curr_info = get_curr_info(speaker)
-                draw_player(mainscreen, curr_state, curr_info, speaker, channel)
-            else:
-                curr_info['title'] = splits[2].replace('TITLE ','')
-                curr_info['artist'] = splits[3].replace('ARTIST ','')
+    while retries < max_retries:
+        if curr_state == 'TRANSITIONING':
+            time.sleep(2)
+            curr_state = get_curr_state(speaker)
+            curr_info = get_curr_info(speaker)
+            retries += 1
+            continue
+        elif curr_state == 'STOPPED':
+            curr_info['title'] = ''
+            break
+        elif curr_state == 'PLAYING':
+            if curr_info['title'].startswith('x-sonosapi'):
+                try:
+                    xml = BeautifulSoup(curr_info['metadata'], 'html.parser')
+                    elements = xml.find_all()
+                    if len(elements) > 3:
+                        dat = elements[3]
+                        splits = dat.text.split('|')
+                        if len(splits) >= 4:
+                            curr_info['title'] = splits[2].replace('TITLE ', '')
+                            curr_info['artist'] = splits[3].replace('ARTIST ', '')
+                            break
+                    # Metadata not ready, retry
+                    curr_state = get_curr_state(speaker)
+                    curr_info = get_curr_info(speaker)
+                    retries += 1
+                    continue
+                except (IndexError, AttributeError):
+                    # Malformed metadata, use defaults
+                    break
+            break
+        else:
+            break
 
     box = curses.newwin(13, 64, 2, 1)
     box.box()
@@ -211,15 +250,15 @@ def get_curr_info(speaker):
     return speaker.group.coordinator.get_current_track_info()
 
 def main(screen):
-    ''' draw the main screen
+    ''' Draw the main screen and handle user input.
     '''
     screen.addstr(1, 1, 'Sonos Favorites Player')
     curses.halfdelay(10)
     choice = 0
     speaker = None
     channel = None
-    while choice is not ord('q'):
-        if choice is ord('s') or speaker is None:
+    while choice != ord('q'):
+        if choice == ord('s') or speaker is None:
             screen.erase()
             screen.addstr(1, 1, 'Sonos Favorites Player')
             screen.addstr(3, 4, 'Select a speaker to listen to:')
@@ -234,8 +273,9 @@ def main(screen):
 
         curr_state = get_curr_state(speaker)
         curr_info = get_curr_info(speaker)
+        coordinator = speaker.group.coordinator
 
-        if choice is ord('c') or channel is None:
+        if choice == ord('c') or channel is None:
             if channel is None:
                 channel = soco.data_structures.DidlFavorite(title='unknown', parent_id='N/A', item_id='N/A')
                 if curr_info['title'].startswith('x-sonos'):
@@ -251,25 +291,27 @@ def main(screen):
                 screen.addstr(20, 1, 'Selected: ' + str(choice) + ' [' + channel.title + ']')
                 screen.touchwin()
                 screen.refresh()
-                title = channel.title
                 uri = channel.get_uri()
                 meta = channel.resource_meta_data
-                speaker.group.coordinator.play_uri(uri=uri,meta=meta)
+                try:
+                    coordinator.play_uri(uri=uri, meta=meta)
+                except Exception as e:
+                    print_error(f"Error playing URI: {e}")
 
-        if choice is ord('+'):
-            speaker.group.coordinator.volume += 1
+        elif choice == ord('+'):
+            coordinator.volume += 1
 
-        if choice is ord('-'):
-            speaker.group.coordinator.volume -= 1
+        elif choice == ord('-'):
+            coordinator.volume -= 1
 
-        if choice is ord('m'):
-            speaker.group.coordinator.mute = not speaker.group.coordinator.mute
+        elif choice == ord('m'):
+            coordinator.mute = not coordinator.mute
 
-        if choice is ord(' '):
+        elif choice == ord(' '):
             if curr_state == 'PLAYING':
-                speaker.group.coordinator.pause()
+                coordinator.pause()
             else:
-                speaker.group.coordinator.play()
+                coordinator.play()
 
         draw_player(screen, curr_state, curr_info, speaker, channel)
 
