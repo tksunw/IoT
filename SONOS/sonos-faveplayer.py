@@ -305,12 +305,17 @@ def main(screen):
                 screen.refresh()
                 uri = channel.get_uri()
                 meta = channel.resource_meta_data
+                is_radio = uri.startswith(('x-sonosapi-stream:', 'x-sonosapi-radio:',
+                                          'x-rincon-mp3radio:', 'hls-radio:',
+                                          'http:', 'https:'))
                 try:
-                    coordinator.play_uri(uri=uri, meta=meta or '')
+                    coordinator.play_uri(uri=uri, meta=meta or '',
+                                        title=channel.title, force_radio=is_radio)
                 except Exception:
-                    # Retry without metadata if invalid args error
+                    # Retry with just title if metadata causes issues
                     try:
-                        coordinator.play_uri(uri=uri, meta='', title=channel.title)
+                        coordinator.play_uri(uri=uri, meta='',
+                                            title=channel.title, force_radio=is_radio)
                     except Exception as e:
                         print_error(f"Error playing URI: {e}")
 
