@@ -1,0 +1,133 @@
+TODO: Add Pandora Thumbs Up/Down Support to sonos-faveplayer.py
+================================================================
+
+OVERVIEW
+--------
+The Sonos API doesn't expose Pandora rating functionality directly.
+The workaround is to call Pandora's API directly using tokens extracted
+from the Sonos track URI.
+
+REQUIREMENTS
+------------
+- Install pydora: pip install pydora
+- Pandora account credentials (username/password)
+- pydora includes default partner keys
+
+IMPLEMENTATION APPROACH
+-----------------------
+
+1. Extract tokens from Sonos track URI:
+
+   When playing Pandora, curr_info['title'] contains a URI like:
+   x-sonos-http:track_token%3a%3aST%3astation_token%3a%3aRINCON...
+
+   Parse it like this:
+
+   def extract_pandora_tokens(track_uri):
+       """Extract track and station tokens from Pandora URI."""
+       import urllib.parse
+       decoded = urllib.parse.unquote(track_uri)
+       # URI format: x-sonos-http:{track_token}::ST:{station_token}::RINCON...
+       if 'x-sonos-http:' not in decoded:
+           return None, None
+       try:
+           # Remove prefix
+           content = decoded.split('x-sonos-http:')[1]
+           # Split on ::ST::
+           parts = content.split('::ST:')
+           track_token = parts[0]
+           station_token = parts[1].split('::RINCON')[0]
+           return track_token, station_token
+       except (IndexError, ValueError):
+           return None, None
+
+2. Set up Pandora client (one-time at startup):
+
+   from pandora.clientbuilder import SettingsDictBuilder
+
+   # Option A: Use default settings (simpler)
+   from pandora.clientbuilder import PydoraConfigFileBuilder
+   pandora_client = PydoraConfigFileBuilder().build()
+
+   # Option B: Explicit settings
+   pandora_client = SettingsDictBuilder({
+       "DECRYPTION_KEY": "R=U!LH$O2B#",
+       "ENCRYPTION_KEY": "6#26FRL$ZWD",
+       "PARTNER_USER": "android",
+       "PARTNER_PASSWORD": "AC7IBG09A3DTSRAT",
+       "DEVICE": "android-generic",
+   }).build()
+
+   pandora_client.login("your_pandora_email", "your_pandora_password")
+
+3. Add feedback function:
+
+   def send_pandora_feedback(pandora_client, track_uri, thumbs_up=True):
+       """Send thumbs up/down to Pandora for current track."""
+       track_token, station_token = extract_pandora_tokens(track_uri)
+       if not track_token:
+           return False
+       try:
+           pandora_client.add_feedback(track_token, positive=thumbs_up)
+           return True
+       except Exception as e:
+           print_error(f"Pandora feedback error: {e}")
+           return False
+
+4. Add key bindings in main() loop:
+
+   elif choice == ord('u'):  # thumbs Up
+       if is_pandora_playing(curr_info):
+           send_pandora_feedback(pandora_client, curr_info['title'], thumbs_up=True)
+
+   elif choice == ord('d'):  # thumbs Down
+       if is_pandora_playing(curr_info):
+           send_pandora_feedback(pandora_client, curr_info['title'], thumbs_up=False)
+           coordinator.next()  # Skip to next track after thumbs down
+
+5. Helper to detect Pandora:
+
+   def is_pandora_playing(curr_info):
+       """Check if currently playing content is from Pandora."""
+       title = curr_info.get('title', '')
+       return 'x-sonosapi-radio:' in title or 'pandora:' in title.lower()
+
+CREDENTIAL STORAGE OPTIONS
+--------------------------
+1. Config file: ~/.pydora.cfg (pydora's default)
+2. Environment variables: PANDORA_USER, PANDORA_PASSWORD
+3. Prompt at startup (less convenient)
+
+Example ~/.pydora.cfg:
+[user]
+username = your_email@example.com
+password = your_password
+
+SUGGESTED KEY BINDINGS
+----------------------
+u = thumbs Up
+d = thumbs Down (also skips to next track)
+
+UI FEEDBACK
+-----------
+Consider showing visual feedback when rating is sent:
+- Flash "Thumbs Up!" or "Thumbs Down!" on screen
+- Add rating status to the player display
+
+REFERENCES
+----------
+- pydora GitHub: https://github.com/mcrute/pydora
+- node-sonos-http-api pandora.js: https://github.com/jishi/node-sonos-http-api
+- Pandora API docs: https://developer.pandora.com/docs/reference/graphql-api/feedback/
+- Anesidora (Node.js): https://github.com/dlom/anesidora
+
+NOTES
+-----
+- The pydora add_feedback method signature:
+  client.add_feedback(track_token, positive=True/False)
+
+- Calls Pandora's "station.addFeedback" endpoint internally
+
+- Thumbs down typically should skip to next track (Pandora behavior)
+
+- May need to handle authentication refresh for long-running sessions

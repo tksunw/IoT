@@ -235,11 +235,18 @@ def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
 
     box = curses.newwin(13, 64, 2, 1)
     box.box()
-    curr_vol = str(speaker.volume) + ' (MUTED)' if speaker.mute else str(speaker.volume)
+    try:
+        curr_vol = str(speaker.volume) + ' (MUTED)' if speaker.mute else str(speaker.volume)
+    except Exception:
+        curr_vol = '??'
     track_pos = curr_info['position'] if curr_info['position'] != 'NOT_IMPLEMENTED' else '0:00:00'
     track_dur = curr_info['duration'] if curr_info['duration'] != 'NOT_IMPLEMENTED' else '0:00:00'
     mainscreen.addstr(1, 1, 'Sonos Favorites Player')
-    box.addstr(1, 2, 'Now ' + curr_state + ' on Sonos Speaker: ' + speaker.player_name)
+    try:
+        player_name = speaker.player_name
+    except Exception:
+        player_name = speaker.ip_address
+    box.addstr(1, 2, 'Now ' + curr_state + ' on Sonos Speaker: ' + player_name)
     box.addstr(2, 2, 'Channel: ' + channel.title)
     box.addstr(3, 2, 'Volume: ' + curr_vol)
     box.hline(4, 2, '-', 60)
@@ -256,10 +263,16 @@ def draw_player(mainscreen, curr_state, curr_info, speaker, channel):
     return None
 
 def get_curr_state(speaker):
-    return speaker.group.coordinator.get_current_transport_info()['current_transport_state']
+    try:
+        return speaker.group.coordinator.get_current_transport_info()['current_transport_state']
+    except Exception:
+        return 'UNKNOWN'
 
 def get_curr_info(speaker):
-    return speaker.group.coordinator.get_current_track_info()
+    try:
+        return speaker.group.coordinator.get_current_track_info()
+    except Exception:
+        return {'title': '', 'artist': '', 'album': '', 'position': '0:00:00', 'duration': '0:00:00', 'metadata': ''}
 
 def main(screen):
     ''' Draw the main screen and handle user input.
@@ -305,34 +318,46 @@ def main(screen):
                 screen.refresh()
                 uri = channel.get_uri()
                 meta = channel.resource_meta_data
-                is_radio = uri.startswith(('x-sonosapi-stream:', 'x-sonosapi-radio:',
-                                          'x-rincon-mp3radio:', 'hls-radio:',
-                                          'http:', 'https:'))
+                # Only use force_radio for plain http/https URIs that need conversion
+                # Sonos-native URIs (x-sonosapi-*, x-rincon-*) should not use force_radio
+                needs_force_radio = uri.startswith(('http:', 'https:')) and \
+                                   not uri.startswith(('x-sonosapi', 'x-rincon', 'x-sonos'))
                 try:
-                    coordinator.play_uri(uri=uri, meta=meta or '',
-                                        title=channel.title, force_radio=is_radio)
+                    coordinator.play_uri(uri=uri, meta=meta or '', title=channel.title)
                 except Exception:
-                    # Retry with just title if metadata causes issues
+                    # Retry without metadata, with force_radio for http streams
                     try:
                         coordinator.play_uri(uri=uri, meta='',
-                                            title=channel.title, force_radio=is_radio)
+                                            title=channel.title, force_radio=needs_force_radio)
                     except Exception as e:
                         print_error(f"Error playing URI: {e}")
 
         elif choice == ord('+'):
-            coordinator.volume += 1
+            try:
+                coordinator.volume += 1
+            except Exception:
+                pass
 
         elif choice == ord('-'):
-            coordinator.volume -= 1
+            try:
+                coordinator.volume -= 1
+            except Exception:
+                pass
 
         elif choice == ord('m'):
-            coordinator.mute = not coordinator.mute
+            try:
+                coordinator.mute = not coordinator.mute
+            except Exception:
+                pass
 
         elif choice == ord(' '):
-            if curr_state == 'PLAYING':
-                coordinator.pause()
-            else:
-                coordinator.play()
+            try:
+                if curr_state == 'PLAYING':
+                    coordinator.pause()
+                else:
+                    coordinator.play()
+            except Exception:
+                pass
 
         draw_player(screen, curr_state, curr_info, speaker, channel)
 
