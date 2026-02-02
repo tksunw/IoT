@@ -306,9 +306,13 @@ def main(screen):
                 uri = channel.get_uri()
                 meta = channel.resource_meta_data
                 try:
-                    coordinator.play_uri(uri=uri, meta=meta)
-                except Exception as e:
-                    print_error(f"Error playing URI: {e}")
+                    coordinator.play_uri(uri=uri, meta=meta or '')
+                except Exception:
+                    # Retry without metadata if invalid args error
+                    try:
+                        coordinator.play_uri(uri=uri, meta='', title=channel.title)
+                    except Exception as e:
+                        print_error(f"Error playing URI: {e}")
 
         elif choice == ord('+'):
             coordinator.volume += 1
