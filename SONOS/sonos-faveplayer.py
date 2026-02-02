@@ -42,11 +42,23 @@ def clean_uri(uri):
 def discover_speakers():
     """Discover Sonos speakers on the network with error handling."""
     try:
-        speakers = soco.discover()
+        speakers = soco.discover(timeout=5)
         if not speakers:
             print("No Sonos speakers found. Please check your network and try again.")
             sys.exit(1)
-        return sorted(speakers, key=operator.attrgetter('player_name'))
+        # Filter out unreachable speakers and sort by name
+        reachable = []
+        for speaker in speakers:
+            try:
+                _ = speaker.player_name  # Test if speaker is reachable
+                reachable.append(speaker)
+            except Exception as e:
+                print(f"Skipping unreachable speaker at {speaker.ip_address}: {e}",
+                      file=sys.stderr)
+        if not reachable:
+            print("No reachable Sonos speakers found. Please check your network.")
+            sys.exit(1)
+        return sorted(reachable, key=operator.attrgetter('player_name'))
     except Exception as e:
         print(f"Error during speaker discovery: {e}")
         sys.exit(1)
